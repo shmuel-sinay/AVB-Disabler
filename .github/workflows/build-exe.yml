@@ -1,0 +1,36 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach the EXE to (e.g. 9.8.7)"
+        required: true
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pyinstaller tkinterdnd2
+      - name: Build
+        run: pyinstaller --onefile --noconsole --collect-all tkinterdnd2 --name "AVB-Disabler" "AVB Disabler GUI.py"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AVB-Disabler-exe
+          path: dist/AVB-Disabler.exe
+      - name: Attach to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+        run: gh release upload "$TAG" dist/AVB-Disabler.exe --clobber
