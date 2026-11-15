@@ -1,4 +1,4 @@
-import sys
+import os, subprocess, sys
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -82,10 +82,11 @@ class App(BaseTk):
     def __init__(self):
         super().__init__()
         self.title("משבית AVB")
-        self.geometry("600x560")
-        self.minsize(600, 560)
+        self.geometry("600x650")
+        self.minsize(600, 650)
         self.configure(bg=BG)
         self.data = self.path = None
+        self.out_dir = base_dir() / "Disabled"
         self.accent = GRAY
         self.build()
 
@@ -129,8 +130,16 @@ class App(BaseTk):
         self.go.set_enabled(False)
         Button(row, "בחר קובץ", self.choose, "#3a4466", width=150).pack(side="right", padx=12)
 
+        row2 = tk.Frame(self, bg=BG)
+        row2.pack(fill="x", padx=30)
+        Button(row2, "📁  פתח תיקייה", self.open_folder, "#3a4466", width=190, height=44).pack(side="right")
+        Button(row2, "בחר תיקיית ייצוא", self.choose_dir, "#3a4466", width=190, height=44).pack(side="right", padx=12)
+
+        self.dir_label = self.text(self, "", 9, MUTED, wraplength=520)
+        self.dir_label.pack(fill="x", padx=30, pady=(12, 0))
+        self.update_dir_label()
         self.out = self.text(self, "", 9, MUTED, wraplength=520)
-        self.out.pack(fill="x", padx=30)
+        self.out.pack(fill="x", padx=30, pady=(4, 0))
 
     # ציורים
     def draw_drop(self, e=None):
@@ -178,6 +187,28 @@ class App(BaseTk):
         self.card.itemconfig(self.s_detail, text=detail)
         Anim(self.card, 12, 15).run(old, color, lambda c: self.card.itemconfig(self.stripe, fill=c))
 
+    # תיקיית ייצוא
+    def update_dir_label(self):
+        self.dir_label.config(text=f"תיקיית ייצוא: {self.out_dir}")
+
+    def choose_dir(self):
+        d = filedialog.askdirectory(title="בחר תיקיית ייצוא", initialdir=str(self.out_dir.parent))
+        if d:
+            self.out_dir = Path(d)
+            self.update_dir_label()
+
+    def open_folder(self):
+        try:
+            self.out_dir.mkdir(parents=True, exist_ok=True)
+            if os.name == "nt":
+                os.startfile(self.out_dir)
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(self.out_dir)])
+            else:
+                subprocess.Popen(["xdg-open", str(self.out_dir)])
+        except Exception as e:
+            messagebox.showerror("שגיאה", str(e))
+
     # לוגיקה
     def choose(self):
         p = filedialog.askopenfilename(filetypes=[("vbmeta images", "*.img"), ("כל הקבצים", "*.*")])
@@ -211,9 +242,8 @@ class App(BaseTk):
     def disable(self):
         if self.data is None:
             return
-        out_dir = base_dir() / "Disabled"
-        out_dir.mkdir(exist_ok=True)
-        out = out_dir / f"{self.path.stem}_disabled{self.path.suffix}"
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        out = self.out_dir / f"{self.path.stem}_disabled{self.path.suffix}"
         if out.exists() and not messagebox.askyesno("הקובץ קיים", "הקובץ כבר קיים. האם לדרוס?"):
             return
         try:
